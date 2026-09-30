@@ -1,0 +1,33 @@
+<!doctype html>
+<html lang="zh">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>素食通 · Chef Card (print)</title>
+  <style>
+    @page { size: A4; margin: 12mm; }
+    body { font-family: "PingFang SC", "Hiragino Sans GB", "Noto Sans CJK SC", sans-serif; color: #111; margin: 0; }
+    .card { border: 2px solid #2f7d4a; border-radius: 10px; padding: 14px 18px; margin-bottom: 10mm; page-break-inside: avoid; }
+    .card h2 { margin: 0 0 6px; font-size: 13px; color: #2f7d4a; font-weight: 600; }
+    .zh { font-size: 21px; line-height: 1.45; margin: 3px 0; }
+    .strong { color: #b3261e; font-weight: 700; }
+    .good { color: #2f7d4a; font-weight: 600; }
+    .en { font-size: 11px; color: #666; margin: 0 0 4px; }
+    .hint { font-size: 12px; color: #888; margin-bottom: 8mm; }
+    @media print { .hint { display: none; } }
+  </style>
+</head>
+<body>
+  <p class="hint">Print this page (⌘P → Save as PDF) and keep a paper copy in your wallet.</p>
+  <div id="cards"></div>
+  <script src="data/phrases.js"></script>
+  <script>
+    const esc = s => String(s).replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+    document.getElementById("cards").innerHTML = PHRASES.cards.map(c => `
+      <div class="card">
+        <h2>${esc(c.title)}</h2>
+        ${c.lines.map(l => `<div class="zh ${l.strong ? "strong" : ""} ${l.good ? "good" : ""}">${esc(l.zh)}</div><div class="en">${esc(l.en)}</div>`).join("")}
+      </div>`).join("");
+  </script>
+</body>
+</html>

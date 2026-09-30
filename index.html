@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#2f7d4a">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  <meta name="apple-mobile-web-app-title" content="素食通">
+  <title>素食通 · Vegan in China</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/icon-180.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <header class="top">
+    <h1>素食通 <small>Vegan in China</small></h1>
+    <button id="settingsBtn" class="icon-btn" aria-label="Settings">⚙︎</button>
+  </header>
+
+  <main>
+    <section id="view-card" class="view"></section>
+    <section id="view-dishes" class="view" hidden></section>
+    <section id="view-eat" class="view" hidden></section>
+    <section id="view-guides" class="view" hidden></section>
+  </main>
+
+  <nav class="tabs">
+    <button data-tab="card" class="active"><span>🪪</span>Card</button>
+    <button data-tab="dishes"><span>🥢</span>Dishes</button>
+    <button data-tab="eat"><span>📍</span>Eat</button>
+    <button data-tab="guides"><span>📖</span>Guides</button>
+  </nav>
+
+  <div id="overlay" class="overlay" hidden></div>
+  <div id="toast" class="toast" hidden></div>
+
+  <script src="data/phrases.js"></script>
+  <script src="data/dishes.js"></script>
+  <script src="data/places.js"></script>
+  <script src="data/guides.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
