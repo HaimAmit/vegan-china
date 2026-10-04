@@ -107,36 +107,75 @@
     keepAwake(true);
   }
   function closeOverlay() {
+    stopSpeaking();
     overlay.hidden = true;
     overlay.innerHTML = "";
     document.body.style.overflow = "";
     keepAwake(false);
   }
 
+  const canSpeak = "speechSynthesis" in window;
+  let zhVoice = null;
+  function pickVoice() {
+    const voices = speechSynthesis.getVoices().filter(v => /^zh[-_]CN/i.test(v.lang));
+    zhVoice = voices.find(v => v.localService) || voices[0] || null;
+  }
+  if (canSpeak) {
+    pickVoice();
+    speechSynthesis.addEventListener("voiceschanged", pickVoice);
+  }
+  function speak(text) {
+    if (!canSpeak) return toast("Audio isn't supported on this device");
+    speechSynthesis.cancel();
+    const u = new SpeechSynthesisUtterance(text);
+    u.lang = "zh-CN";
+    if (zhVoice) u.voice = zhVoice;
+    u.rate = 0.85;
+    speechSynthesis.speak(u);
+  }
+  function stopSpeaking() { if (canSpeak) speechSynthesis.cancel(); }
+  const sayBtn = (text, cls = "") => canSpeak ? `<button class="say ${cls}" data-act="say" data-text="${esc(text)}" aria-label="Play audio">🔊</button>` : "";
+  const NUMS = ["①", "②", "③", "④"];
+  const NUMS_ZH = ["第一个", "第二个", "第三个", "第四个"];
+
   function lineHtml(l) {
     return `<div class="show-line ${l.strong ? "strong" : ""} ${l.good ? "good" : ""}">
-      <span class="zh">${esc(l.zh)}</span>
-      ${settings.pinyin && l.py ? `<span class="py">${esc(l.py)}</span>` : ""}
-      ${settings.english && l.en ? `<span class="en">${esc(l.en)}</span>` : ""}
+      <div>
+        <span class="zh">${esc(l.zh)}</span>
+        ${settings.pinyin && l.py ? `<span class="py">${esc(l.py)}</span>` : ""}
+        ${settings.english && l.en ? `<span class="en">${esc(l.en)}</span>` : ""}
+      </div>
+      ${sayBtn(l.zh)}
     </div>`;
   }
 
   function show(lines) {
     openOverlay(`
-      <button class="btn ghost small close" data-act="close">✕ Close</button>
+      <div class="overlay-bar">
+        ${lines.length > 1 ? sayBtn(lines.map(l => l.zh).join(""), "wide") : "<span></span>"}
+        <button class="btn ghost small close" data-act="close">✕ Close</button>
+      </div>
       <div class="show-body">${lines.map(lineHtml).join("")}</div>
       <div class="show-hint">Show this screen to the waiter or cook · 请看屏幕</div>`);
+  }
+
+  // Spoken with numbered options so someone who can't read the buttons can still pick one by position.
+  function questionSpeech(q) {
+    return `${q.zh} 请点答案：${q.answers.map((a, j) => `${NUMS_ZH[j]}，${a.zh}`).join("。")}。`;
   }
 
   function openQuestion(i) {
     const q = P.questions[i];
     openOverlay(`
-      <button class="btn ghost small close" data-act="close">✕ Close</button>
+      <div class="overlay-bar">
+        ${sayBtn(questionSpeech(q), "wide")}
+        <button class="btn ghost small close" data-act="close">✕ Close</button>
+      </div>
       <div class="qa-pls">请您点一下答案 👇</div>
       <div class="qa-q">${esc(q.zh)}</div>
       <div class="qa-en">${esc(q.en)} <br><small>The waiter taps an answer below. "Please tap the answer."</small></div>
       <div class="qa-answers">
-        ${q.answers.map((a, j) => `<button data-act="answer" data-q="${i}" data-a="${j}">${esc(a.zh)}</button>`).join("")}
+        ${q.answers.map((a, j) => `<button data-act="answer" data-q="${i}" data-a="${j}"><span class="num">${NUMS[j]}</span> ${esc(a.zh)}</button>`).join("")}
       </div>`);
   }
 
@@ -153,7 +192,7 @@
         <div class="sub" style="font-size:14px;color:#555">Q: ${esc(q.en)}</div>
       </div>
       <div class="followup">
-        <span class="zh">${esc(f.zh)}</span>
+        <span class="zh">${esc(f.zh)} ${sayBtn(f.zh)}</span>
         ${settings.pinyin ? `<span class="py" style="color:#888;font-size:14px">${esc(f.py)}</span><br>` : ""}
         <span class="en">${esc(f.en)}</span>
       </div>
@@ -215,6 +254,7 @@
         </div>
         <div class="builder-preview" id="builderPreview">${esc(b.zh)}</div>
         <div class="row">
+          ${sayBtn("", "builder-say")}
           <button class="btn" style="flex:1" data-act="showBuilder">Show</button>
           <button class="btn ghost" data-act="resetBuilder">Reset</button>
         </div>
@@ -225,7 +265,7 @@
         ${P.useful.map((p, i) => `
           <div class="phrase">
             <div><div class="zh">${esc(p.zh)}</div><div class="py">${esc(p.py)}</div><div class="en">${esc(p.en)}</div></div>
-            <button class="btn secondary small" data-act="useful" data-i="${i}">Show</button>
+            <div class="row nowrap">${sayBtn(p.zh)}<button class="btn secondary small" data-act="useful" data-i="${i}">Show</button></div>
           </div>`).join("")}
       </div>`;
   }
@@ -260,6 +300,7 @@
             <div class="py">${esc(d.py)}</div>
             <div class="en">${esc(d.en)}</div>
           </div>
+          ${sayBtn(d.zh, "sm")}
           <span class="badge ${d.status}">${s.icon} ${s.label}</span>
           <button class="star ${favs.has(d.zh) ? "on" : ""}" data-act="fav" data-zh="${esc(d.zh)}" aria-label="Favorite">★</button>
         </div>
@@ -331,7 +372,7 @@
       ${s.phrases ? s.phrases.map(p => `
         <div class="phrase">
           <div><div class="zh">${esc(p.zh)}</div><div class="en">${esc(p.en)}</div></div>
-          <button class="btn ${p.copy ? "" : "secondary"} small" data-act="${p.copy ? "copyText" : "showText"}" data-zh="${esc(p.zh)}" data-en="${esc(p.en)}">${p.copy ? "Copy" : "Show"}</button>
+          <div class="row nowrap">${p.copy ? "" : sayBtn(p.zh)}<button class="btn ${p.copy ? "" : "secondary"} small" data-act="${p.copy ? "copyText" : "showText"}" data-zh="${esc(p.zh)}" data-en="${esc(p.en)}">${p.copy ? "Copy" : "Show"}</button></div>
         </div>`).join("") : ""}
     </div>`;
   }
@@ -352,6 +393,7 @@
       <div class="panel settings">
         <label>Show pinyin on cards <input type="checkbox" data-set="pinyin" ${settings.pinyin ? "checked" : ""}></label>
         <label>Show English on cards <input type="checkbox" data-set="english" ${settings.english ? "checked" : ""}></label>
+        <p>🔊 Audio uses your phone's built-in Chinese voice and works offline. If you hear nothing, check the volume and the silent switch. For a more natural voice on iPhone: Settings → Accessibility → Spoken Content → Voices → Chinese (China), and download an enhanced voice.</p>
         <p>Everything works offline. Data: ${DISHES.length} dishes, ${P.questions.length} questions, ${G.length} guides.</p>
         <p>Install: in Safari tap Share → <b>Add to Home Screen</b>. In Chrome tap ⋮ → <b>Install app</b>. Open it once while online, and after that it works in airplane mode.</p>
         <p>Content is a best-effort guide. Kitchens vary, so when in doubt ask with the Q&amp;A cards.</p>
@@ -381,6 +423,7 @@
     const d = el.dataset;
     switch (d.act) {
       case "close": return closeOverlay();
+      case "say": return speak(el.classList.contains("builder-say") ? builderText().zh : d.text);
       case "card": return show(P.cards.find(c => c.id === d.id).lines);
       case "question": return openQuestion(+d.i);
       case "answer": return answer(+d.q, +d.a);
