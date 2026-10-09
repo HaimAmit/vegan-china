@@ -15,7 +15,7 @@ window.PLACES = {
   ],
 
   apps: [
-    { id: "amap", name: "Amap 高德地图", note: "Best maps in China. Search near you.", url: "https://uri.amap.com/search?keyword={q}&callnative=1" },
+    { id: "amap", name: "Amap 高德地图", note: "Best maps in China. Search near you.", url: "https://uri.amap.com/search?keyword={q}&callnative=1", iosUrl: "iosamap://poi?sourceApplication=sushitong&name={q}&dev=0" },
     { id: "apple", name: "Apple Maps", note: "Uses Amap data inside China, works well", url: "maps://?q={q}" },
     { id: "baidu", name: "Baidu Maps 百度地图", note: "Alternative map", url: "baidumap://map/place/search?query={q}&src=ios.suishitong" },
     { id: "dianping", name: "Dianping 大众点评", note: "China's Yelp. Keyword gets copied, paste into search", url: "dianping://", copy: true },

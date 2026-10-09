@@ -358,7 +358,7 @@
 
       <h2>2 · Search nearby for <span class="zh" style="text-transform:none;color:var(--green)">${esc(q)}</span></h2>
       <div class="app-list">
-        ${PL.apps.map(a => `<a class="app-btn" href="${esc(a.url.replace("{q}", encodeURIComponent(q)))}" data-act="app" data-copy="${a.copy ? 1 : 0}">
+        ${PL.apps.map(a => `<a class="app-btn" href="${esc(((isIOS && a.iosUrl) || a.url).replace("{q}", encodeURIComponent(q)))}" data-act="app" data-copy="${a.copy ? 1 : 0}">
           <span><b>${esc(a.name)}</b><small>${esc(a.note)}</small></span><span class="go">›</span></a>`).join("")}
         <button class="btn secondary" data-act="copyKw">Copy「${esc(q)}」</button>
       </div>
@@ -367,10 +367,22 @@
       ${PL.tips.map(t => `<div class="panel tip"><h3>${esc(t.t)}</h3><p>${esc(t.d)}</p></div>`).join("")}`;
   }
 
+  // The uri.amap.com web handoff fails on iPhone, so iOS uses the app scheme directly.
+  const isIOS = /iPhone|iPad|iPod/.test(navigator.userAgent) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+
   function amapLinks(p, stop) {
     const name = encodeURIComponent(p.name_zh || p.name_en);
     const hasPos = p.lat != null && p.lng != null;
     const coord = p.coord === "gcj" ? "gaode" : "wgs84";
+    if (isIOS) {
+      const app = "sourceApplication=sushitong";
+      // Without a position the search box has nothing to centre on, so the city name in the keyword keeps results local.
+      const search = hasPos
+        ? `iosamap://poi?${app}&name=${name}&lat1=${p.lat - 0.02}&lon1=${p.lng - 0.02}&lat2=${p.lat + 0.02}&lon2=${p.lng + 0.02}&dev=${p.coord === "gcj" ? 0 : 1}`
+        : `iosamap://poi?${app}&name=${encodeURIComponent(stop.zh + " ")}${name}&dev=0`;
+      const pin = hasPos ? `iosamap://viewMap?${app}&poiname=${name}&lat=${p.lat}&lon=${p.lng}&dev=${p.coord === "gcj" ? 0 : 1}` : null;
+      return { search, pin };
+    }
     const search = `https://uri.amap.com/search?keyword=${name}&city=${encodeURIComponent(stop.amap)}${hasPos ? `&center=${p.lng},${p.lat}` : ""}&view=map&src=sushitong&callnative=1`;
     const pin = hasPos ? `https://uri.amap.com/marker?position=${p.lng},${p.lat}&name=${name}&coordinate=${coord}&src=sushitong&callnative=1` : null;
     return { search, pin };

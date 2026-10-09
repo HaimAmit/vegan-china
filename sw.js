@@ -1,4 +1,4 @@
-const CACHE = "sst-v3";
+const CACHE = "sst-v4";
 const FILES = [
   "./",
   "index.html",
