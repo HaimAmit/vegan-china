@@ -1,4 +1,4 @@
-const CACHE = "sst-v2";
+const CACHE = "sst-v3";
 const FILES = [
   "./",
   "index.html",
@@ -10,6 +10,7 @@ const FILES = [
   "data/dishes.js",
   "data/places.js",
   "data/guides.js",
+  "data/route.js",
   "icons/icon.svg",
   "icons/icon-180.png",
   "icons/icon-192.png",

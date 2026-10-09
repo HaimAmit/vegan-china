@@ -3,6 +3,7 @@
   const DISHES = window.DISHES || [];
   const PL = window.PLACES;
   const G = window.GUIDES;
+  const R = window.ROUTE;
 
   const $ = (s, el = document) => el.querySelector(s);
   const esc = s => String(s ?? "").replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
@@ -14,6 +15,7 @@
 
   const settings = Object.assign({ pinyin: true, english: true }, store.get("settings", {}));
   const favs = new Set(store.get("favs", []));
+  const saved = new Set(store.get("saved", []));
   const state = {
     tab: "card",
     q: "",
@@ -22,6 +24,7 @@
     region: "all",
     keyword: PL.keywords[0].zh,
     guide: null,
+    city: store.get("city", R.stops[0].id),
     chips: new Set(),
     dish: ""
   };
@@ -364,6 +367,59 @@
       ${PL.tips.map(t => `<div class="panel tip"><h3>${esc(t.t)}</h3><p>${esc(t.d)}</p></div>`).join("")}`;
   }
 
+  function amapLinks(p, stop) {
+    const name = encodeURIComponent(p.name_zh || p.name_en);
+    const hasPos = p.lat != null && p.lng != null;
+    const coord = p.coord === "gcj" ? "gaode" : "wgs84";
+    const search = `https://uri.amap.com/search?keyword=${name}&city=${encodeURIComponent(stop.amap)}${hasPos ? `&center=${p.lng},${p.lat}` : ""}&view=map&src=sushitong&callnative=1`;
+    const pin = hasPos ? `https://uri.amap.com/marker?position=${p.lng},${p.lat}&name=${name}&coordinate=${coord}&src=sushitong&callnative=1` : null;
+    return { search, pin };
+  }
+
+  function placeHtml(p, stop) {
+    const id = stop.id + ":" + (p.name_zh || p.name_en);
+    const { search, pin } = amapLinks(p, stop);
+    const meta = [p.area, p.type, p.price, p.hours].filter(Boolean).map(esc).join(" · ");
+    return `<div class="panel place ${p.list}">
+      <div class="head">
+        <div class="names">
+          <div class="zh">${esc(p.name_zh || p.name_en)}</div>
+          ${p.name_zh ? `<div class="en">${esc(p.name_en)}</div>` : ""}
+        </div>
+        <span class="badge ${p.list === "main" ? "safe" : "ask"}">${p.list === "main" ? "100% vegan" : "Vegan options"}</span>
+      </div>
+      ${meta ? `<div class="meta">${meta}</div>` : ""}
+      ${p.what ? `<div class="note">${esc(p.what)}</div>` : ""}
+      ${p.evidence ? `<div class="evidence">${esc(p.evidence)}${p.confirmed ? ` <span class="confirmed">Last confirmed ${esc(p.confirmed)}</span>` : ""}</div>` : ""}
+      <div class="actions">
+        <a class="btn small" href="${esc(search)}">Amap ›</a>
+        ${pin ? `<a class="btn secondary small" href="${esc(pin)}">📍 Pin</a>` : ""}
+        <button class="btn secondary small" data-act="taxi" data-zh="${esc(p.name_zh || p.name_en)}" data-addr="${esc(p.address_zh || "")}" data-en="${esc(p.address_en || p.name_en)}">🚕 Taxi</button>
+        <button class="btn ghost small saved-btn ${saved.has(id) ? "on" : ""}" data-act="saved" data-id="${esc(id)}">${saved.has(id) ? "✓ Saved" : "Saved?"}</button>
+      </div>
+    </div>`;
+  }
+
+  function renderRoute() {
+    const stop = R.stops.find(s => s.id === state.city) || R.stops[0];
+    const list = R.places.filter(p => p.stop === stop.id);
+    const main = list.filter(p => p.list === "main");
+    const backup = list.filter(p => p.list !== "main");
+    const done = R.places.filter(p => saved.has(p.stop + ":" + (p.name_zh || p.name_en))).length;
+    $("#view-route").innerHTML = `
+      <h2>${esc(R.title)}</h2>
+      <div class="filters route-stops">
+        ${R.stops.map((s, i) => `<button class="chip ${s.id === stop.id ? "on" : ""}" data-act="city" data-id="${s.id}">${i + 1}. ${esc(s.name)} <span class="zh">${esc(s.zh)}</span></button>`).join("")}
+      </div>
+      <div class="panel tip">
+        <h3>Save to Amap</h3>
+        <p>Tap <b>Amap</b> to open the place, then tap ☆ <span class="zh">收藏</span> in Amap. Tick <b>Saved?</b> here to keep track (${done}/${R.places.length} saved). If the search finds nothing, use <b>📍 Pin</b>. Places close often, so check the listing in Amap or Dianping before you go.</p>
+      </div>
+      ${stop.note ? `<div class="panel tip"><p>${esc(stop.note)}</p></div>` : ""}
+      ${main.length ? `<h2>100% vegan · ${main.length}</h2>${main.map(p => placeHtml(p, stop)).join("")}` : `<div class="empty">No fully vegan place found here. Use the backups below, or the <b>Eat</b> tab to search for <span class="zh">素食</span> nearby.</div>`}
+      ${backup.length ? `<h2>Backups with vegan options · ${backup.length}</h2>${backup.map(p => placeHtml(p, stop)).join("")}` : ""}`;
+  }
+
   function sectionHtml(s) {
     return `<div class="panel">
       <h3>${esc(s.h)}</h3>
@@ -400,7 +456,7 @@
       </div>`);
   }
 
-  const renders = { card: renderCard, dishes: renderDishes, eat: renderEat, guides: renderGuides };
+  const renders = { card: renderCard, dishes: renderDishes, eat: renderEat, route: renderRoute, guides: renderGuides };
 
   function go(tab) {
     state.tab = tab;
@@ -469,6 +525,12 @@
         return;
       case "copyText": copy(d.zh); return toast("Copied");
       case "showText": return show([{ zh: d.zh, en: d.en }]);
+      case "city": state.city = d.id; store.set("city", d.id); renderRoute(); return;
+      case "saved":
+        saved.has(d.id) ? saved.delete(d.id) : saved.add(d.id);
+        store.set("saved", [...saved]);
+        return renderRoute();
+      case "taxi": return show([{ zh: d.zh, strong: true }, ...(d.addr ? [{ zh: d.addr, en: d.en }] : [{ zh: "请带我去这里", en: "Please take me here" }])]);
       case "guide": state.guide = d.id || null; renderGuides(); window.scrollTo(0, 0); return;
     }
   });
